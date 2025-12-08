@@ -1,0 +1,37 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+spec:
+  acme:
+    # Let's Encrypt production server
+    server: https://acme-v02.api.letsencrypt.org/directory
+    # Email address for important account notifications
+    email: mike.gao@fphcare.co.nz  # TODO: Replace with your email
+    # Name of a secret used to store the ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-prod
+    # Enable HTTP01 challenge solver
+    solvers:
+    - http01:
+        ingress:
+          class: nginx
+
+---
+# Optional: Staging ClusterIssuer for testing (uncomment if needed)
+# Use staging server to avoid rate limits during testing
+# apiVersion: cert-manager.io/v1
+# kind: ClusterIssuer
+# metadata:
+#   name: letsencrypt-staging
+# spec:
+#   acme:
+#     server: https://acme-staging-v02.api.letsencrypt.org/directory
+#     email: your-email@example.com  # TODO: Replace with your email
+#     privateKeySecretRef:
+#       name: letsencrypt-staging
+#     solvers:
+#     - http01:
+#         ingress:
+#           class: nginx
+

@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: azure-app-config-internal-service
+  namespace: default
+  labels:
+    app: azure-app-config-app
+spec:
+  type: ClusterIP
+  # ClusterIP is for internal cluster access, used by Ingress
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http
+  selector:
+    app: azure-app-config-app
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+

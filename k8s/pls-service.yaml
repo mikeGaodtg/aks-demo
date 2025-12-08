@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontdoor-pls-service
+
+  annotations:
+    # 1. MUST be set to "true" to provision the Private Link Service
+    service.beta.kubernetes.io/azure-pls-create: "true"
+    
+    # 2. Assigns a name to the Azure Private Link Service resource that will be created
+    service.beta.kubernetes.io/azure-pls-name: "aks-frontdoor-link"
+    
+    # 3. Private Link Services MUST front an Internal Load Balancer (ILB)
+    service.beta.kubernetes.io/azure-load-balancer-internal: "true"
+    
+    # 4. (Optional) Define the static IP for the ILB in your AKS VNet
+    # service.beta.kubernetes.io/azure-load-balancer-ipv4: <internal-ip-address>
+    
+    # 5. Specify the subnet where the PLS IP configuration will reside. 
+    # This MUST be a separate subnet within your AKS VNet, not the AKS node subnet.
+    service.beta.kubernetes.io/azure-pls-ip-configuration-subnet: "Cluster"
+    
+    # 6. Set the visibility. Since Front Door is a Microsoft managed service, 
+    # you typically set the visibility to the Service Principal ID of Azure Front Door.
+    # To allow *any* subscription to connect, you can use: "*"
+    service.beta.kubernetes.io/azure-pls-visibility: "*" 
+    
+    # 7. IMPORTANT: For Front Door Standard/Premium, you MUST allow auto-approval 
+    # from the specific Service Principal that corresponds to your Front Door instance.
+    # You must get this Principal ID from the Azure portal or CLI.
+    # The ID below is a placeholder and MUST be replaced.
+
+    # 8. (Optional) Disabling Proxy Protocol if you handle headers downstream (e.g., in NGINX Ingress)
+
+    # 9. (Optional) How many IPs to reserve in the PLS subnet (default is 1)
+    # service.beta.kubernetes.io/azure-pls-ip-configuration-ip-address-count: "1"
+
+spec:
+  # The type MUST be LoadBalancer for the Azure controller to provision the external resources
+  type: LoadBalancer
+  selector:
+    # This must match the label of the Pods (or Ingress Controller Pods) you want to expose
+    app: azure-app-config-app
+  ports:
+  - port: 80
+    targetPort: 3000
+    protocol: TCP
+    name: http

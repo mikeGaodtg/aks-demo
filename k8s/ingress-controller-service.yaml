@@ -1,0 +1,28 @@
+# This file shows how to ensure the Ingress Controller service is LoadBalancer type
+# The Ingress Controller service is typically created when installing the ingress controller
+# Use this to update an existing ingress controller service if needed
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+  annotations:
+    # Optional: Specify a static IP for the LoadBalancer
+    # service.beta.kubernetes.io/azure-load-balancer-ip: "YOUR_STATIC_IP"
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  - port: 443
+    targetPort: https
+    protocol: TCP
+    name: https
+  selector:
+    app.kubernetes.io/name: ingress-nginx
+    app.kubernetes.io/instance: ingress-nginx
+    app.kubernetes.io/component: controller
+
