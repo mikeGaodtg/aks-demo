@@ -17,20 +17,20 @@ require('dotenv').config();
 const express = require('express');
 const https = require('https');
 const fs = require('fs');
-const { AppConfigurationClient } = require('@azure/app-configuration');
+const { SecretClient } = require('@azure/keyvault-secrets');
 const { DefaultAzureCredential, ManagedIdentityCredential } = require('@azure/identity');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Azure App Configuration endpoint URL
-// Format: https://<your-app-config-name>.azconfig.io
-const appConfigEndpoint = process.env.AZURE_APP_CONFIG_ENDPOINT;
+// Azure Key Vault URL
+// Format: https://<your-key-vault-name>.vault.azure.net
+const keyVaultUrl = process.env.AZURE_KEY_VAULT_URL;
 
-if (!appConfigEndpoint) {
-  console.error('Error: AZURE_APP_CONFIG_ENDPOINT environment variable is not set');
-  console.error('Please set AZURE_APP_CONFIG_ENDPOINT to your App Configuration endpoint URL');
-  console.error('Example: https://app-config-mikegao-1');
+if (!keyVaultUrl) {
+  console.error('Error: AZURE_KEY_VAULT_URL environment variable is not set');
+  console.error('Please set AZURE_KEY_VAULT_URL to your Key Vault URL');
+  console.error('Example: https://your-key-vault-name.vault.azure.net');
   process.exit(1);
 }
 
@@ -139,12 +139,12 @@ if (caCerts) {
   console.warn('⚠️  Using default Node.js certificates. This may cause SSL verification errors.');
 }
 
-// Create Azure App Configuration client using managed identity
+// Create Azure Key Vault Secret client using managed identity
 // Note: The Azure SDK should use Node.js's https module which respects https.globalAgent
 // and NODE_EXTRA_CA_CERTS environment variable
-const client = new AppConfigurationClient(appConfigEndpoint, credential);
-console.log('Created Azure App Configuration client using managed identity');
-console.log(`App Configuration Endpoint: ${appConfigEndpoint}`);
+const client = new SecretClient(keyVaultUrl, credential);
+console.log('Created Azure Key Vault Secret client using managed identity');
+console.log(`Key Vault URL: ${keyVaultUrl}`);
 
 // Log certificate configuration for debugging
 console.log('Certificate configuration:');
@@ -152,30 +152,32 @@ console.log(`  NODE_EXTRA_CA_CERTS: ${process.env.NODE_EXTRA_CA_CERTS || 'not se
 console.log(`  SSL_CERT_FILE: ${process.env.SSL_CERT_FILE || 'not set'}`);
 console.log(`  HTTPS Agent CA: ${https.globalAgent.options?.ca ? 'configured' : 'not configured'}`);
 console.log(`  HTTPS Agent: ${https.globalAgent ? 'exists' : 'missing'}`);
-const configKey = 'App:Message';
+// Secret name in Key Vault
+// This should match the secret name you create in Key Vault
+const secretName = process.env.KEY_VAULT_SECRET_NAME || 'AppMessage';
 
-// Cache the configuration value
+// Cache the secret value
 let cachedMessage = 'Loading...';
 
-// Function to fetch configuration from Azure App Config
-async function fetchConfigValue() {
+// Function to fetch secret from Azure Key Vault
+async function fetchSecretValue() {
   try {
-    const setting = await client.getConfigurationSetting({ key: configKey });
-    cachedMessage = setting.value || 'No value found';
-    console.log(`Successfully fetched configuration: ${configKey} = ${cachedMessage}`);
+    const secret = await client.getSecret(secretName);
+    cachedMessage = secret.value || 'No value found';
+    console.log(`Successfully fetched secret: ${secretName} = ${cachedMessage}`);
   } catch (error) {
-    console.error('Error fetching configuration from Azure App Config:');
+    console.error('Error fetching secret from Azure Key Vault:');
     console.error('Message:', error.message);
     console.error('Stack:', error.stack);
-    cachedMessage = 'Error loading configuration';
+    cachedMessage = 'Error loading secret';
   }
 }
 
-// Fetch configuration on startup
-fetchConfigValue();
+// Fetch secret on startup
+fetchSecretValue();
 
-// Refresh configuration every 30 seconds (optional)
-setInterval(fetchConfigValue, 30000);
+// Refresh secret every 30 seconds (optional)
+setInterval(fetchSecretValue, 30000);
 
 app.get('/', async (req, res) => {
   // Optionally refresh on each request (remove if you prefer caching)
@@ -187,7 +189,7 @@ app.get('/', async (req, res) => {
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Azure App Config</title>
+      <title>Azure Key Vault</title>
       <style>
         body {
           font-family: Arial, sans-serif;
@@ -223,9 +225,9 @@ app.get('/', async (req, res) => {
     <body>
       <h1>${cachedMessage}</h1>
       <div class="config-info">
-        <div>Key: <span class="key">${configKey}</span></div>
-        <div>Config App: <span class="key">aks-appconfig-12</span></div>
-        <div>Resource Group: <span class="key">Mike</span></div>
+        <div>Secret Name: <span class="key">${secretName}</span></div>
+        <div>Key Vault: <span class="key">${keyVaultUrl.replace('https://', '').replace('.vault.azure.net', '')}</span></div>
+        <div>Source: <span class="key">Azure Key Vault</span></div>
       </div>
     </body>
     </html>
@@ -234,7 +236,7 @@ app.get('/', async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);
-  console.log('Open your browser and navigate to the URL above to see the configuration value');
-  console.log(`Fetching configuration key: ${configKey}`);
+  console.log('Open your browser and navigate to the URL above to see the secret value');
+  console.log(`Fetching secret: ${secretName} from Key Vault: ${keyVaultUrl}`);
 });
 
